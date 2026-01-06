@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class RoleMiddleware
+{
+    public function handle($request, Closure $next, ...$roles)
+    {
+        if (!auth()->check()) {
+            abort(403);
+        }
+
+        $userRole = strtolower(auth()->user()->user_type);
+        // dd(auth()->user());
+
+        $roles = array_map('strtolower', $roles);
+
+        if (!in_array($userRole, $roles)) {
+            abort(403, 'Akses ditolak');
+        }
+
+        return $next($request);
+    }
+
+}
