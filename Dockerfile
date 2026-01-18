@@ -1,46 +1,64 @@
-# Stage 1: Build Assets
+# =========================
+# Stage 1: Build Frontend
+# =========================
 FROM node:20-alpine AS assets-builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 
-# Stage 2: App Engine
+# =========================
+# Stage 2: PHP App
+# =========================
 FROM php:8.2-fpm-alpine
 
-# Set working directory
 WORKDIR /var/www
 
-# Install system dependencies
-RUN apk add --no-cache \
-    curl \
-    libpng-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    git \
-    oniguruma-dev \
-    libzip-dev \
-    icu-dev
-
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl posix
+# Install runtime dependencies + build deps
+RUN apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        icu-dev \
+        libpng-dev \
+        libzip-dev \
+        oniguruma-dev \
+    && apk add --no-cache \
+        icu \
+        libpng \
+        libzip \
+        zip \
+        unzip \
+        git \
+        curl \
+    && docker-php-ext-configure gd \
+    && docker-php-ext-install \
+        pdo_mysql \
+        mbstring \
+        bcmath \
+        gd \
+        zip \
+        intl \
+    && apk del .build-deps
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy application files
+# Copy app source
 COPY . .
+
+# Copy built assets
 COPY --from=assets-builder /app/public/build ./public/build
 
-# Install PHP dependencies
-RUN COMPOSER_MEMORY_LIMIT=-1 composer update --no-dev --optimize-autoloader --no-scripts --no-interaction
+# Install PHP deps (PRODUCTION)
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+# Permissions
+RUN chown -R www-data:www-data storage bootstrap/cache
 
-# Copy entrypoint script
+# Entrypoint
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
