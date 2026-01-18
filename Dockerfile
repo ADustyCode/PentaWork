@@ -1,29 +1,11 @@
 # =========================
-# Stage 1: Build Frontend
-# =========================
-FROM node:20-alpine AS assets-builder
-WORKDIR /app
-
-# Copy package.json dan package-lock.json
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy source frontend
-COPY . .
-
-# Build frontend assets
-RUN npm run build
-
-# =========================
-# Stage 2: PHP App
+# PHP App
 # =========================
 FROM php:8.2-fpm-alpine
 
 WORKDIR /var/www
 
-# Install runtime + build dependencies
+# Install runtime + PHP extensions
 RUN apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
         icu-dev \
@@ -54,16 +36,16 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy app source
 COPY . .
 
-# Copy built frontend assets
-COPY --from=assets-builder /app/public/build ./public/build
+# Copy pre-built frontend
+COPY public/build ./public/build
 
-# Install PHP dependencies (PRODUCTION)
+# Install PHP dependencies
 RUN COMPOSER_MEMORY_LIMIT=-1 composer install \
     --no-dev \
     --optimize-autoloader \
     --no-interaction
 
-# Set proper permissions
+# Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 
 # Entrypoint
