@@ -1,56 +1,66 @@
-# =========================
-# PHP App
-# =========================
+# ==============================
+# Base PHP Image (ARM64 SAFE)
+# ==============================
 FROM php:8.2-fpm-alpine
 
+# Set working directory
 WORKDIR /var/www
 
-# Install runtime + PHP extensions
-RUN apk add --no-cache --virtual .build-deps \
-        $PHPIZE_DEPS \
-        icu-dev \
-        libpng-dev \
-        libzip-dev \
-        oniguruma-dev \
-    && apk add --no-cache \
-        icu \
-        libpng \
-        libzip \
-        zip \
-        unzip \
-        git \
-        curl \
-    && docker-php-ext-configure gd \
-    && docker-php-ext-install \
-        pdo_mysql \
-        mbstring \
-        bcmath \
-        gd \
-        zip \
-        intl \
-    && apk del .build-deps
+# ==============================
+# Install system dependencies
+# ==============================
+RUN apk update && apk add --no-cache \
+    bash \
+    curl \
+    git \
+    unzip \
+    zip \
+    icu-dev \
+    libpng-dev \
+    libzip-dev \
+    oniguruma-dev \
+    mysql-client
 
-# Install Composer
+# ==============================
+# Install PHP Extensions
+# ==============================
+RUN docker-php-ext-install \
+    pdo_mysql \
+    mbstring \
+    bcmath \
+    gd \
+    zip \
+    intl
+
+# ==============================
+# Install Composer (ARM64 OK)
+# ==============================
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy app source
+# ==============================
+# Copy Laravel Source
+# ==============================
 COPY . .
 
-# Copy pre-built frontend
-COPY public/build ./public/build
-
-# Install PHP dependencies
-RUN COMPOSER_MEMORY_LIMIT=-1 composer install \
+# ==============================
+# Install Laravel dependencies
+# (safe for low CPU)
+# ==============================
+RUN composer install \
     --no-dev \
-    --optimize-autoloader \
-    --no-interaction
+    --no-interaction \
+    --optimize-autoloader || true
 
-# Set permissions
-RUN chown -R www-data:www-data storage bootstrap/cache
+# ==============================
+# Permissions
+# ==============================
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
 
-# Entrypoint
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+# ==============================
+# Expose PHP-FPM Port
+# ==============================
+EXPOSE 9000
 
-ENTRYPOINT ["entrypoint.sh"]
 CMD ["php-fpm"]
