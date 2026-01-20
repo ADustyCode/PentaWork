@@ -48,6 +48,9 @@ Route::middleware(['auth', 'verified', 'role:jobseeker'])
 
         Route::post('/settings/password', [JobseekerSettingsController::class, 'updatePassword'])
             ->name('settings.password');
+
+        Route::post('/settings/email', [JobseekerSettingsController::class, 'updateEmail'])
+            ->name('settings.email');
     });
 
 Route::middleware(['auth'])->group(function () {

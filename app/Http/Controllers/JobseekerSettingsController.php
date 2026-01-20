@@ -42,23 +42,57 @@ class JobseekerSettingsController extends Controller
 
     public function updatePassword(Request $request)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'current_password' => 'required',
             'password' => 'required|min:8|confirmed',
         ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)
+                ->withInput()
+                ->with('active_tab', 'security');
+        }
 
         $user = auth()->user();
 
         if (!Hash::check($request->current_password, $user->password)) {
             return back()->withErrors([
                 'current_password' => 'Password saat ini salah'
-            ]);
+            ])->with('active_tab', 'security');
         }
 
         $user->update([
             'password' => Hash::make($request->password),
         ]);
 
-        return back()->with('success', 'Password berhasil diperbarui');
+        return back()->with('success', 'Password berhasil diperbarui')->with('active_tab', 'security');
+    }
+
+    public function updateEmail(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'current_password' => 'required',
+            'email' => 'required|email|unique:users,email,' . auth()->id(),
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)
+                ->withInput()
+                ->with('active_tab', 'security');
+        }
+
+        $user = auth()->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors([
+                'current_password_email' => 'Password saat ini salah'
+            ])->with('active_tab', 'security');
+        }
+
+        $user->update([
+            'email' => $request->email,
+        ]);
+
+        return back()->with('success', 'Email berhasil diperbarui')->with('active_tab', 'security');
     }
 }
