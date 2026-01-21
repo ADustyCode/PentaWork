@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\JobseekerProfileController;
+use App\Http\Controllers\EmployerProfileController;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -34,10 +36,8 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        dd($request);
-
         $type = $request->routeIs('register-company') ? 'employer' : 'jobseeker';
-        dd($type);
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -61,6 +61,47 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
             'user_type' => $request->$type, // ✅ simpan role
         ]);
+
+        if ($request->$type == "jobseeker"){
+            $data = [
+                'full_name' => $request->name,
+                'headline' => '-',
+                'location' => '-',
+                'job_status' => '-',
+                'summary' => '-',
+                'main_field' => '-',
+                'experience_years' => '-',
+                'skills' => '-',
+                'job_preference_type' => '-',
+                'job_preference_location' => '-',
+                'portfolio_url' => '-',
+                'linkedin_url' => '-',
+            ];
+
+            JobseekerProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                $data
+            );
+        } else {
+            $data = [
+                'company_name' => $request->name,
+                'industry' => '-',
+                'size' => '-',
+                'year_founded' => '-',
+                'location' => '-',
+                'description' => '-',
+                'website' => '-',
+                'recruitment_email' => '-',
+                'linkedin_link' => '-',
+                'instagram_link' => '-',
+                'culture' => '-',
+            ];
+
+            EmployerProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                $data
+            );
+        }
 
         event(new Registered($user));
 
